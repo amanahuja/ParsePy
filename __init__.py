@@ -11,16 +11,22 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import urllib, urllib2
+# import urllib, urllib2
 import base64
-import json
+import requests
+
+try:
+    import simplejson as json
+except ImportError:
+    import json
+
 import datetime
 import collections
 
 API_ROOT = 'https://api.parse.com/1/classes'
 
 APPLICATION_ID = ''
-MASTER_KEY = ''
+REST_API_KEY = ''
 
 
 class ParseBinaryDataWrapper(str):
@@ -31,20 +37,22 @@ class ParseBase(object):
     def _executeCall(self, uri, http_verb, data=None):
         url = API_ROOT + uri
 
-        request = urllib2.Request(url, data)
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Parse-Application-Id': APPLICATION_ID,
+            'X-Parse-REST-API-Key': REST_API_KEY
+        }
 
-        request.add_header('Content-type', 'application/json')
+        if http_verb is 'POST':
+            response = requests.post(url, data=data, headers=headers)
+        elif http_verb is 'GET':
+            response = requests.get(url, params=data, headers=headers)
+        elif http_verb is 'PUT':
+            response = requests.put(url, data=data, headers=headers)
+        elif http_verb is 'DELETE':
+            response = requests.delete(url, headers=headers)
 
-        # we could use urllib2's authentication system, but it seems like overkill for this
-        auth_header =  "Basic %s" % base64.b64encode('%s:%s' % (APPLICATION_ID, MASTER_KEY))
-        request.add_header("Authorization", auth_header)
-
-        request.get_method = lambda: http_verb
-
-        # TODO: add error handling for server response
-        response = urllib2.urlopen(request)
-        response_body = response.read()
-        response_dict = json.loads(response_body)
+        response_dict = json.loads(response.text)
 
         return response_dict
 
@@ -91,13 +99,16 @@ class ParseObject(ParseBase):
         self = self.__init__(None)
 
     def _populateFromDict(self, attrs_dict):
-        self._object_id = attrs_dict['objectId']
-        self._created_at = attrs_dict['createdAt']
-        self._updated_at = attrs_dict['updatedAt']
+        try:
+            self._object_id = attrs_dict['objectId']
+            self._created_at = attrs_dict['createdAt']
+            self._updated_at = attrs_dict['updatedAt']
 
-        del attrs_dict['objectId']
-        del attrs_dict['createdAt']
-        del attrs_dict['updatedAt']
+            del attrs_dict['objectId']
+            del attrs_dict['createdAt']
+            del attrs_dict['updatedAt']
+        except KeyError:
+            pass
 
         attrs_dict = dict(map(self._convertFromParseType, attrs_dict.items()))
 
@@ -112,7 +123,7 @@ class ParseObject(ParseBase):
                     'objectId': value._object_id}
         elif type(value) == datetime.datetime:
             value = {'__type': 'Date',
-                    'iso': value.isoformat()[:-3] + 'Z'} # take off the last 3 digits and add a Z
+                    'iso': value.strftime("%Y-%m-%dT%H:%M:%S.%f%Z")}
         elif type(value) == ParseBinaryDataWrapper:
             value = {'__type': 'Bytes',
                     'base64': base64.b64encode(value)}
@@ -122,7 +133,7 @@ class ParseObject(ParseBase):
     def _convertFromParseType(self, prop):
         key, value = prop
 
-        if type(value) == dict and value.has_key('__type'):
+        if type(value) == dict and '__type' in value:
             if value['__type'] == 'Pointer':
                 value = ParseQuery(value['className']).get(value['objectId'])
             elif value['__type'] == 'Date':
@@ -144,7 +155,7 @@ class ParseObject(ParseBase):
         #properties_list = [(key, value) for key, value in self.__dict__.items() if key[0] != '_']
 
         properties_list = map(self._convertToParseType, properties_list)
-        
+
         properties_dict = dict(properties_list)
         json_properties = json.dumps(properties_dict)
 
@@ -159,7 +170,7 @@ class ParseObject(ParseBase):
         data = self._getJSONProperties()
 
         response_dict = self._executeCall(uri, 'POST', data)
-        
+
         self._created_at = self._updated_at = response_dict['createdAt']
         self._object_id = response_dict['objectId']
 
@@ -192,15 +203,15 @@ class ParseQuery(ParseBase):
     def lt(self, name, value):
         self._where[name]['$lt'] = value
         return self
-        
+
     def lte(self, name, value):
         self._where[name]['$lte'] = value
         return self
-        
+
     def gt(self, name, value):
         self._where[name]['$gt'] = value
         return self
-        
+
     def gte(self, name, value):
         self._where[name]['$gte'] = value
         return self
@@ -229,27 +240,32 @@ class ParseQuery(ParseBase):
     def fetch(self):
         # hide the single_result param of the _fetch method from the library user
         # since it's only useful internally
-        return self._fetch() 
+        return self._fetch()
 
     def _fetch(self, single_result=False):
         # URL: /1/classes/<className>/<objectId>
         # HTTP Verb: GET
 
         if self._object_id:
+            options = {}
             uri = '/%s/%s' % (self._class_name, self._object_id)
         else:
-            options = dict(self._options) # make a local copy
+            options = dict(self._options)  # make a local copy
             if self._where:
+                for key, value in self._where.iteritems():
+                    if isinstance(value, ParseObject):
+                        self._where[key] = {'__type': 'Pointer',
+                                            'className': value._class_name,
+                                            'objectId': value._object_id}
                 # JSON encode WHERE values
                 where = json.dumps(self._where)
                 options.update({'where': where})
 
-            uri = '/%s?%s' % (self._class_name, urllib.urlencode(options))
+            uri = '/%s' % (self._class_name)
 
-        response_dict = self._executeCall(uri, 'GET')
+        response_dict = self._executeCall(uri, 'GET', options)
 
         if single_result:
             return ParseObject(self._class_name, response_dict)
         else:
             return [ParseObject(self._class_name, result) for result in response_dict['results']]
-                
