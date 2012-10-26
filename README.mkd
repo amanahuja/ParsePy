@@ -10,9 +10,8 @@ Let's get everything set up first. You'll need to give **ParsePy** your _Applica
 
 ~~~~~ {python}
 >>> import ParsePy
->>> ParsePy.APPLICATION_ID = "your application id"
->>> ParsePy.REST_API_KEY = "your Rest API key"
->>> ParsePy.MASTER_KEY = "your master key here"
+>>> ParsePy.APPLICATION_ID = "Your Application ID"
+>>> ParsePy.REST_API_KEY = "Your Rest API key"
 ~~~~~
 
 To create a new object of the Parse class _GameScore_:
