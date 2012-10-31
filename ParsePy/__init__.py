@@ -11,10 +11,14 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import urllib
-import urllib2
 import base64
-import json
+import requests
+
+try:
+    import simplejson as json
+except ImportError:
+    import json
+
 import datetime
 import collections
 
@@ -28,17 +32,28 @@ class ParseBinaryDataWrapper(str):
 
 
 class ParseBase(object):
-    def _executeCall(self, uri, http_verb, data=None, type='classes'):
-        url = '/'.join([API_ROOT, type, uri]).strip('/')
-        request = urllib2.Request(url, data)
-        request.add_header('Content-type', 'application/json')
-        request.add_header("X-Parse-Application-Id", APPLICATION_ID)
-        request.add_header("X-Parse-REST-API-Key", REST_API_KEY)
-        request.get_method = lambda: http_verb
-        # TODO: add error handling for server response
-        response = urllib2.urlopen(request)
-        response_body = response.read()
-        response_dict = json.loads(response_body)
+    def _executeCall(self, uri, http_verb, data=None):
+        url = API_ROOT + uri
+        #url = '/'.join([API_ROOT, type, uri]).strip('/')
+
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Parse-Application-Id': APPLICATION_ID,
+            'X-Parse-REST-API-Key': REST_API_KEY
+        }
+
+        if http_verb is 'POST':
+            response = requests.post(url, data=data, headers=headers)
+        elif http_verb is 'GET':
+            response = requests.get(url, params=data, headers=headers)
+        elif http_verb is 'PUT':
+            response = requests.put(url, data=data, headers=headers)
+        elif http_verb is 'DELETE':
+            response = requests.delete(url, headers=headers)
+
+        #response_dict = json.loads(response.read())
+        response_dict = json.loads(response.text)
+
         return response_dict
 
     def _ISO8601ToDatetime(self, date_string):
@@ -84,13 +99,16 @@ class ParseObject(ParseBase):
         self = self.__init__(None)
 
     def _populateFromDict(self, attrs_dict):
-        self._object_id = attrs_dict['objectId']
-        self._created_at = attrs_dict['createdAt']
-        self._updated_at = attrs_dict['updatedAt']
+        try:
+            self._object_id = attrs_dict['objectId']
+            self._created_at = attrs_dict['createdAt']
+            self._updated_at = attrs_dict['updatedAt']
 
-        del attrs_dict['objectId']
-        del attrs_dict['createdAt']
-        del attrs_dict['updatedAt']
+            del attrs_dict['objectId']
+            del attrs_dict['createdAt']
+            del attrs_dict['updatedAt']
+        except KeyError:
+            pass
 
         attrs_dict = dict(map(self._convertFromParseType, attrs_dict.items()))
 
@@ -105,7 +123,8 @@ class ParseObject(ParseBase):
                      'objectId': value._object_id}
         elif type(value) == datetime.datetime:
             value = {'__type': 'Date',
-                     'iso': value.isoformat()[:-3] + 'Z'} # take off the last 3 digits and add a Z
+                    #'iso': value.isoformat()[:-3] + 'Z'} # take off the last 3 digits and add a Z
+                    'iso': value.strftime("%Y-%m-%dT%H:%M:%S.%f%Z")}
         elif type(value) == ParseBinaryDataWrapper:
             value = {'__type': 'Bytes',
                      'base64': base64.b64encode(value)}
@@ -115,7 +134,7 @@ class ParseObject(ParseBase):
     def _convertFromParseType(self, prop):
         key, value = prop
 
-        if type(value) == dict and value.has_key('__type'):
+        if type(value) == dict and '__type' in value:
             if value['__type'] == 'Pointer':
                 value = ParseQuery(value['className']).get(value['objectId'])
             elif value['__type'] == 'Date':
@@ -228,23 +247,27 @@ class ParseQuery(ParseBase):
         # HTTP Verb: GET
 
         if self._object_id:
-            uri = '%s/%s' % (self._class_name, self._object_id)
+            uri = '/%s/%s' % (self._class_name, self._object_id)
         else:
-            options = dict(self._options) # make a local copy
+            options = dict(self._options)  # make a local copy
             if self._where:
+                for key, value in self._where.iteritems():
+                    if isinstance(value, ParseObject):
+                        self._where[key] = {'__type': 'Pointer',
+                                            'className': value._class_name,
+                                            'objectId': value._object_id}
                 # JSON encode WHERE values
                 where = json.dumps(self._where)
                 options.update({'where': where})
 
-            uri = '%s?%s' % (self._class_name, urllib.urlencode(options))
+            uri = '/%s' % (self._class_name)
 
-        response_dict = self._executeCall(uri, 'GET')
+        response_dict = self._executeCall(uri, 'GET', options)
 
         if single_result:
             return ParseObject(self._class_name, response_dict)
         else:
             return [ParseObject(self._class_name, result) for result in response_dict['results']]
-
 
 class ParseNotification(ParseBase):
     def push(self, channel='', type='ios', data=None):
