@@ -9,12 +9,15 @@ Repos
 The original repository (https://github.com/pktck/ParsePy) is the one listed at Parse.com, but is limited and out-of-date. See https://www.parse.com/docs/api_libraries/
 
 This repository is an amalgamation of the original by @pktck (https://github.com/pktck/ParsePy), as well as corrections and contributions from others including:
-  @iamsk (https://github.com/iamsk/ParsePy/) 
-  @jpadilla (https://github.com/jpadilla/ParsePy)
-
-... and my own work. 
+  - @iamsk (https://github.com/iamsk/ParsePy/) 
+  - @jpadilla (https://github.com/jpadilla/ParsePy)
+  - ... and my own work. 
 
 The rest of the README below is mostly from the original, and may not reflect subsequent changes. 
+
+Changes of note are: 
+ - Using `requests` instead of `urllib(2)`. 
+ - 
 
 Basic Usage
 -----------
