@@ -43,6 +43,12 @@ class ParseBase(object):
         self.USER_LOGGED_IN = False
 
     def _login(self, username, password):
+        '''
+        Login Functionality implemented at ParseBase Level to allow (for 
+        example) queries to be contructed as a user. See Parse 
+        documentation: https://www.parse.com/docs/rest#users-login
+        '''
+
         login_params = {}
         login_params['username'] = username
         login_params['password'] = password
