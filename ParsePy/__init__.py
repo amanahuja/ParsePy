@@ -13,6 +13,7 @@
 
 import base64
 import requests
+import sys 
 
 try:
     import simplejson as json
@@ -34,11 +35,34 @@ class ParseBinaryDataWrapper(str):
 
 class ParseBase(object):
     def __init__(self):
-      self.headers = {
-        'Content-Type': 'application/json',
-        'X-Parse-Application-Id': APPLICATION_ID,
-        'X-Parse-REST-API-Key': REST_API_KEY
-        }       
+        self.headers = {
+            'Content-Type': 'application/json',
+            'X-Parse-Application-Id': APPLICATION_ID,
+            'X-Parse-REST-API-Key': REST_API_KEY
+            }
+        self.USER_LOGGED_IN = False
+
+    def _login(self, username, password):
+        login_params = {}
+        login_params['username'] = username
+        login_params['password'] = password
+        
+        uri = '/login?'
+        try:
+            response_dict = self._executeCall(uri, 'GET', login_params)
+        except: 
+            print 'Login Failed: ', sys.exc_info()[0]
+            raise
+        
+        self.USER_LOGGED_IN = True
+
+        self.user = {}
+        self.user['username'] = response_dict['username']
+        self.user['user_object_id'] = response_dict['objectId']
+        
+        self.headers['X-Parse-Session-Token'] = response_dict['sessionToken']
+        
+        return self
 
     def _executeCall(self, uri, http_verb, data=None):
         url = API_ROOT + uri
@@ -282,3 +306,5 @@ class ParseNotification(ParseBase):
         post_data = {'channel': channel, 'type': type, 'data': data}
         result = self._executeCall('', 'POST', type='push', data=json.dumps(post_data))
         return result
+
+
