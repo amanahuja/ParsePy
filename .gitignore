@@ -1,5 +1,15 @@
+# File types #
+##############
 *.pyc
+*.swp
+*.bkup*
+
+# Directories #
+###############
 ParsePy.egg-info/
 dist/
-config.py
 build
+
+# Specific files #
+##################
+config.py
