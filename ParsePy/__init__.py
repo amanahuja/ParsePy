@@ -24,6 +24,7 @@ import collections
 
 API_ROOT = 'https://api.parse.com/1'
 
+#Should we move these to a config file? 
 APPLICATION_ID = ''
 REST_API_KEY = ''
 
@@ -32,24 +33,25 @@ class ParseBinaryDataWrapper(str):
 
 
 class ParseBase(object):
+    def __init__(self):
+      self.headers = {
+        'Content-Type': 'application/json',
+        'X-Parse-Application-Id': APPLICATION_ID,
+        'X-Parse-REST-API-Key': REST_API_KEY
+        }       
+
     def _executeCall(self, uri, http_verb, data=None):
         url = API_ROOT + uri
         #url = '/'.join([API_ROOT, type, uri]).strip('/')
 
-        headers = {
-            'Content-Type': 'application/json',
-            'X-Parse-Application-Id': APPLICATION_ID,
-            'X-Parse-REST-API-Key': REST_API_KEY
-        }
-
         if http_verb is 'POST':
-            response = requests.post(url, data=data, headers=headers)
+            response = requests.post(url, data=data, headers=self.headers)
         elif http_verb is 'GET':
-            response = requests.get(url, params=data, headers=headers)
+            response = requests.get(url, params=data, headers=self.headers)
         elif http_verb is 'PUT':
-            response = requests.put(url, data=data, headers=headers)
+            response = requests.put(url, data=data, headers=self.headers)
         elif http_verb is 'DELETE':
-            response = requests.delete(url, headers=headers)
+            response = requests.delete(url, headers=self.headers)
 
         #response_dict = json.loads(response.read())
         response_dict = json.loads(response.text)
@@ -65,6 +67,7 @@ class ParseBase(object):
 
 class ParseObject(ParseBase):
     def __init__(self, class_name, attrs_dict=None):
+        super(ParseObject, self).__init__()
         self._class_name = class_name
         self._object_id = None
         self._updated_at = None
