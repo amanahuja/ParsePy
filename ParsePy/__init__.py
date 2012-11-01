@@ -42,6 +42,30 @@ class ParseBase(object):
             }
         self.USER_LOGGED_IN = False
 
+    def _executeCall(self, uri, http_verb, data=None):
+        url = API_ROOT + uri
+        #url = '/'.join([API_ROOT, type, uri]).strip('/')
+
+        if http_verb is 'POST':
+            response = requests.post(url, data=data, headers=self.headers)
+        elif http_verb is 'GET':
+            response = requests.get(url, params=data, headers=self.headers)
+        elif http_verb is 'PUT':
+            response = requests.put(url, data=data, headers=self.headers)
+        elif http_verb is 'DELETE':
+            response = requests.delete(url, headers=self.headers)
+
+        #response_dict = json.loads(response.read())
+        response_dict = json.loads(response.text)
+
+        return response_dict
+
+    def _ISO8601ToDatetime(self, date_string):
+        # TODO: verify correct handling of timezone
+        date_string = date_string[:-1] + 'UTC'
+        date = datetime.datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%S.%f%Z")
+        return date
+
     def _login(self, username, password):
         '''
         Login Functionality implemented at ParseBase Level to allow (for 
@@ -69,31 +93,6 @@ class ParseBase(object):
         self.headers['X-Parse-Session-Token'] = response_dict['sessionToken']
         
         return self
-
-    def _executeCall(self, uri, http_verb, data=None):
-        url = API_ROOT + uri
-        #url = '/'.join([API_ROOT, type, uri]).strip('/')
-
-        if http_verb is 'POST':
-            response = requests.post(url, data=data, headers=self.headers)
-        elif http_verb is 'GET':
-            response = requests.get(url, params=data, headers=self.headers)
-        elif http_verb is 'PUT':
-            response = requests.put(url, data=data, headers=self.headers)
-        elif http_verb is 'DELETE':
-            response = requests.delete(url, headers=self.headers)
-
-        #response_dict = json.loads(response.read())
-        response_dict = json.loads(response.text)
-
-        return response_dict
-
-    def _ISO8601ToDatetime(self, date_string):
-        # TODO: verify correct handling of timezone
-        date_string = date_string[:-1] + 'UTC'
-        date = datetime.datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%S.%f%Z")
-        return date
-
 
 class ParseObject(ParseBase):
     def __init__(self, class_name, attrs_dict=None):
