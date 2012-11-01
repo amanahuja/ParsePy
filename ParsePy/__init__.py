@@ -20,7 +20,7 @@ except ImportError:
     import json
 
 import datetime
-import collections
+from collections import defaultdict
 
 API_ROOT = 'https://api.parse.com/1'
 
@@ -193,7 +193,7 @@ class ParseObject(ParseBase):
 class ParseQuery(ParseBase):
     def __init__(self, class_name):
         self._class_name = class_name
-        self._where = collections.defaultdict(dict)
+        self._where = defaultdict(dict)
         self._options = {}
         self._object_id = ''
 
