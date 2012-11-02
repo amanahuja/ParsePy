@@ -42,8 +42,12 @@ class ParseBase(object):
             }
         self.USER_LOGGED_IN = False
 
-    def _executeCall(self, uri, http_verb, data=None, api_type='classes'):
-        url = '/'.join([API_ROOT, api_type, uri.strip('/')]).strip('/')
+    def _executeCall(self, uri, http_verb, data=None, api_type=None):
+        if api_type: 
+            url = '/'.join([API_ROOT, api_type])
+        else:
+            url = API_ROOT
+        url = '/'.join([url, uri.strip('/')])
 
         if http_verb is 'POST':
             response = requests.post(url, data=data, headers=self.headers)
@@ -60,6 +64,8 @@ class ParseBase(object):
         if 'error' in response_dict: 
             print ('>> Parse API returned error: "{}" '
                 'on {} request to url "{}"').format(response_dict['error'], http_verb, url)
+            if data: 
+                print 'Attached data: ', data
         
         return response_dict
 
@@ -95,6 +101,7 @@ class ParseBase(object):
         
         self.headers['X-Parse-Session-Token'] = response_dict['sessionToken']
         
+        print '>> User {} logged in.'.format(self.user['username'])
         return self
 
 class ParseObject(ParseBase):
@@ -273,6 +280,9 @@ class ParseQuery(ParseBase):
         self._object_id = object_id
         return self._fetch(single_result=True)
 
+#    def login(self, *args): 
+#        return self.
+
     def fetch(self):
         # hide the single_result param of the _fetch method from the library user
         # since it's only useful internally
@@ -299,7 +309,7 @@ class ParseQuery(ParseBase):
 
             uri = '/%s' % (self._class_name)
 
-        response_dict = self._executeCall(uri, 'GET', options)
+        response_dict = self._executeCall(uri, 'GET', options, api_type='classes')
 
         if single_result:
             return ParseObject(self._class_name, response_dict)
