@@ -42,9 +42,8 @@ class ParseBase(object):
             }
         self.USER_LOGGED_IN = False
 
-    def _executeCall(self, uri, http_verb, data=None):
-        url = API_ROOT + uri
-        #url = '/'.join([API_ROOT, type, uri]).strip('/')
+    def _executeCall(self, uri, http_verb, data=None, api_type='classes'):
+        url = '/'.join([API_ROOT, api_type, uri.strip('/')]).strip('/')
 
         if http_verb is 'POST':
             response = requests.post(url, data=data, headers=self.headers)
@@ -221,6 +220,7 @@ class ParseObject(ParseBase):
 
 class ParseQuery(ParseBase):
     def __init__(self, class_name):
+        super(ParseQuery, self).__init__()
         self._class_name = class_name
         self._where = defaultdict(dict)
         self._options = {}
@@ -280,6 +280,7 @@ class ParseQuery(ParseBase):
 
         if self._object_id:
             uri = '/%s/%s' % (self._class_name, self._object_id)
+            options = None
         else:
             options = dict(self._options)  # make a local copy
             if self._where:
