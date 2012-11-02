@@ -57,6 +57,10 @@ class ParseBase(object):
         #response_dict = json.loads(response.read())
         response_dict = json.loads(response.text)
 
+        if 'error' in response_dict: 
+            print ('>> Parse API returned error: "{}" '
+                'on {} request to url "{}"').format(response_dict['error'], http_verb, url)
+        
         return response_dict
 
     def _ISO8601ToDatetime(self, date_string):
