@@ -309,12 +309,18 @@ class ParseQuery(ParseBase):
 
             uri = '/%s' % (self._class_name)
 
+        #For Debugging (temp)
+        print 'Executing call'
+        print (uri, 'GET', options, 'classes')
         response_dict = self._executeCall(uri, 'GET', options, api_type='classes')
-
-        if single_result:
-            return ParseObject(self._class_name, response_dict)
-        else:
-            return [ParseObject(self._class_name, result) for result in response_dict['results']]
+        
+        try: 
+          if single_result:
+                return ParseObject(self._class_name, response_dict)
+          else:
+              return [ParseObject(self._class_name, result) for result in response_dict['results']]
+        except: 
+          print "Unable to return result, ResponseDict: ", response_dict
 
 class ParseNotification(ParseBase):
     def push(self, channel='', type='ios', data=None):
